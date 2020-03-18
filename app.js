@@ -4,7 +4,7 @@ var UiController = (function () {
     score: ['#score-0', '#score-1'],
     current: ['#current-0', '#current-1'],
     panel: ['.player-0-panel','.player-1-panel'],
-    dice: '.dice',
+    dice: ['.dice1','.dice2'],
     newgame: '.btn-new',
     roll: '.btn-roll',
     hold: '.btn-hold',
@@ -12,6 +12,13 @@ var UiController = (function () {
   
   function setToZero(ele){
     document.querySelector(ele).innerHTML = '0';
+  }
+
+  function toggleDice({style,imgSrc}) {
+    DomSelector.dice.map((ele)=>{
+      style && (document.querySelector(ele).style.display = style);
+      // imgSrc && (document.querySelector(ele).src = imgSrc);
+    })
   }
   
   return {
@@ -22,7 +29,7 @@ var UiController = (function () {
     resetGame: function(fullReset = true, activePlayer) {
       if(fullReset){
         DomSelector.score.map(setToZero);
-        document.querySelector(DomSelector.dice).style.display = 'none';
+        toggleDice({style:'none'});
         DomSelector.current.map(setToZero);
       }
       else{
@@ -30,10 +37,10 @@ var UiController = (function () {
       }
     },
 
-    setDice: function(number){
-      console.log('Setting dice');
-      document.querySelector(DomSelector.dice).style.display = 'block';
-      document.querySelector(DomSelector.dice).src = `dice-${number}.png`
+    setDice: function({dice1, dice2}){
+      toggleDice({style:'block'});
+      document.querySelector(DomSelector.dice[0]).src = `dice-${dice1}.png`;
+      document.querySelector(DomSelector.dice[1]).src = `dice-${dice2}.png`;
     },
 
     updateScore: function(data,activePlayer){
@@ -44,9 +51,10 @@ var UiController = (function () {
 
     switchPlayer: function(activePlayer,data) {
       DomSelector.panel.map(ele => document.querySelector(ele).classList.toggle('active'));
-      data.preivousRoll[activePlayer] = 0;
+      data.preivousRoll1[activePlayer] = 0;
+      data.preivousRoll2[activePlayer] = 0;
       activePlayer ? activePlayer = 0 : activePlayer = 1;
-      document.querySelector(DomSelector.dice).style.display = 'none';
+      toggleDice({style:'none'});
       return activePlayer;
     },
     
@@ -54,44 +62,49 @@ var UiController = (function () {
 })();
 
 var PigGame = (function () {
-  let dice;
+  let dice1, dice2;
   let data = {
     totalScore: [0,0],
     currentScore: [0,0],
-    preivousRoll:[0,0],
+    preivousRoll1:[0,0],
+    preivousRoll2:[0,0],
     twice6: false,
   };
-  let { totalScore, currentScore, preivousRoll } = data;
+  let { totalScore, currentScore, preivousRoll1, preivousRoll2 } = data;
   return {
     generateNumber: function(){
-     dice = Math.floor(Math.random() * 3 )+ 4;
-     return dice;
+     dice1 = Math.floor(Math.random() * 6 )+ 1;
+     dice2 = Math.floor(Math.random() * 6 )+ 1;
+     return {dice1, dice2};
     },
 
     getData:  () => {
       return data;
     },
 
-    addingScore: function(num,previousScore,activePlayer) {
-
-      if(preivousRoll[activePlayer] === 6 && num ===6){
+    addingScore: function(number,previousScore,activePlayer) {
+      let {dice1, dice2} = number;
+      let num = dice1 + dice2;
+      console.log(typeof number);
+      if((preivousRoll1[activePlayer] === 6 && dice1 ===6) || (preivousRoll2[activePlayer] === 6 && dice2 ===6)){
         totalScore[activePlayer] = 0;
         currentScore[activePlayer] = 0;
         data.twice6 = true;
       }
-      else if(num != 1){
-        currentScore[activePlayer] = currentScore[activePlayer] + num;
-      }
-      else{
+      else if(dice1 == 1 || dice2 == 1){
         currentScore[activePlayer] = 0;
         totalScore[activePlayer] = previousScore + currentScore[activePlayer];
       }
-      preivousRoll[activePlayer] = num;
+      else{
+        currentScore[activePlayer] = currentScore[activePlayer] + num;
+      }
+      preivousRoll1[activePlayer] = dice1;
+      preivousRoll2[activePlayer] = dice2;
       return data;
     },
 
     checkWinner(activePlayer) {
-      (totalScore[activePlayer] >= 20) && alert(`Player-${activePlayer} is Winner`) 
+      (totalScore[activePlayer] >= 50) && alert(`Player-${activePlayer} is Winner`);
     }
   }
 
@@ -107,15 +120,19 @@ var Controller = (function (game, UiCtrl) {
 
   document.querySelector(roll).addEventListener('click',function(){
     num = game.generateNumber();
-    console.log(num);
     UiCtrl.setDice(num);
     let previousScore = parseInt(document.querySelector(score[activePlayer]).innerHTML);
     const data = game.addingScore(num,previousScore,activePlayer);
+    console.log(data);
     UiCtrl.updateScore(data,activePlayer);
+    let { currentScore } = data;
     game.checkWinner(activePlayer);
-
-    if ( num ===1 || data.twice6 ){
-      activePlayer = UiCtrl.switchPlayer(activePlayer,data);
+    console.log(num.dice1, num.dice2, currentScore[activePlayer]);
+    if ( num.dice1 ===1 || data.twice6 || num.dice2 === 1){
+      UiCtrl.resetGame(false,activePlayer);
+      setTimeout(()=>{
+        activePlayer = UiCtrl.switchPlayer(activePlayer,data);
+      },1200);
       data.twice6 = false;
     }
   });
